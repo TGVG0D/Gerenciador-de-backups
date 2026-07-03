@@ -1,0 +1,42 @@
+[
+    {
+        "id": "cat_geral",
+        "nome": "Backup Geral",
+        "parentId": null
+    },
+    {
+        "id": "cat_servers",
+        "nome": "Servers minecraft",
+        "parentId": null
+    },
+    {
+        "id": "cat_modpacks",
+        "nome": "Modpacks",
+        "parentId": "cat_6a3831422c6bb"
+    },
+    {
+        "nome": "Minecraft",
+        "parentId": null,
+        "id": "cat_6a3831422c6bb"
+    },
+    {
+        "nome": "Mapas",
+        "parentId": "cat_6a3831422c6bb",
+        "id": "cat_6a38316e26543"
+    },
+    {
+        "nome": "Discord",
+        "parentId": null,
+        "id": "cat_6a38318dcc545"
+    },
+    {
+        "nome": "Discord bots",
+        "parentId": "cat_6a38318dcc545",
+        "id": "cat_6a3831a1206d6"
+    },
+    {
+        "nome": "apps",
+        "parentId": null,
+        "id": "cat_6a3fff905fadf"
+    }
+]
