@@ -17,7 +17,7 @@ checkLogin();
             <h1><span class="highlight">G</span>erenciador de <span class="highlight">B</span>ackups</h1>
             <p>Agrupe e organize seus links de backup facilmente.</p>
             <div style="display: flex; gap: 1rem; margin-top: 1rem; justify-content: center;">
-                <a href="profile.php" class="btn-logout" style="background: rgba(255,255,255,0.1); color: #fff; text-decoration: none;">Perfil</a>
+                <a href="settings" class="btn-logout" style="background: rgba(255,255,255,0.1); color: #fff; text-decoration: none;">Perfil</a>
                 <a href="auth.php?action=logout" class="btn-logout" style="text-decoration: none;">Sair</a>
             </div>
         </header>

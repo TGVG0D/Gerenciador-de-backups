@@ -43,9 +43,9 @@ if (!file_exists($file)) {
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    // Return all backups
-    $data = file_get_contents($file);
-    echo $data;
+    // Return all backups (descriptografa antes de enviar)
+    $data = decryptData(file_get_contents($file));
+    echo json_encode($data);
     exit;
 }
 
@@ -66,12 +66,12 @@ if ($method === 'POST') {
         $newBackup['id'] = uniqid(); // Add a unique ID
         $newBackup['timestamp'] = time(); // Add a timestamp for sorting
         
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         
         // Add to beginning of array
         array_unshift($currentData, $newBackup);
         
-        file_put_contents($file, json_encode($currentData, JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData($currentData));
         
         echo json_encode(['success' => true, 'message' => 'Backup salvo com sucesso.']);
     } else {
@@ -86,7 +86,7 @@ if ($method === 'PUT') {
     $updateReq = json_decode($input, true);
 
     if (isset($updateReq['id'], $updateReq['nome'], $updateReq['link'], $updateReq['data'], $updateReq['tamanho'], $updateReq['informacao'])) {
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         
         foreach ($currentData as &$item) {
             if ($item['id'] === $updateReq['id']) {
@@ -100,7 +100,7 @@ if ($method === 'PUT') {
             }
         }
         
-        file_put_contents($file, json_encode($currentData, JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData($currentData));
         echo json_encode(['success' => true, 'message' => 'Backup atualizado com sucesso.']);
     } else {
         http_response_code(400);
@@ -115,12 +115,12 @@ if ($method === 'DELETE') {
     $deleteReq = json_decode($input, true);
     
     if(isset($deleteReq['id'])) {
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         $currentData = array_filter($currentData, function($item) use ($deleteReq) {
             return $item['id'] !== $deleteReq['id'];
         });
         
-        file_put_contents($file, json_encode(array_values($currentData), JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData(array_values($currentData)));
         echo json_encode(['success' => true, 'message' => 'Backup removido.']);
     } else {
         http_response_code(400);

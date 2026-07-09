@@ -37,7 +37,8 @@ if (!file_exists($file)) {
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    echo file_get_contents($file);
+    $data = decryptData(file_get_contents($file));
+    echo json_encode($data);
     exit;
 }
 
@@ -50,10 +51,10 @@ if ($method === 'POST') {
         $newCat['parentId'] = isset($newCat['parentId']) && !empty($newCat['parentId']) ? htmlspecialchars(strip_tags(trim($newCat['parentId']))) : null;
         $newCat['id'] = uniqid('cat_');
         
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         $currentData[] = $newCat;
         
-        file_put_contents($file, json_encode($currentData, JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData($currentData));
         echo json_encode(['success' => true, 'message' => 'Categoria salva.', 'id' => $newCat['id']]);
     } else {
         http_response_code(400);
@@ -67,7 +68,7 @@ if ($method === 'PUT') {
     $updateReq = json_decode($input, true);
 
     if (isset($updateReq['id'], $updateReq['nome'])) {
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         
         foreach ($currentData as &$item) {
             if ($item['id'] === $updateReq['id']) {
@@ -77,7 +78,7 @@ if ($method === 'PUT') {
             }
         }
         
-        file_put_contents($file, json_encode($currentData, JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData($currentData));
         echo json_encode(['success' => true, 'message' => 'Categoria atualizada.']);
     } else {
         http_response_code(400);
@@ -92,7 +93,7 @@ if ($method === 'DELETE') {
     
     if(isset($deleteReq['id'])) {
         $idToDelete = $deleteReq['id'];
-        $currentData = json_decode(file_get_contents($file), true);
+        $currentData = decryptData(file_get_contents($file));
         
         // Delete cascading: delete the category and its subcategories
         $idsToDelete = [$idToDelete];
@@ -106,7 +107,7 @@ if ($method === 'DELETE') {
             return !in_array($item['id'], $idsToDelete);
         });
         
-        file_put_contents($file, json_encode(array_values($currentData), JSON_PRETTY_PRINT));
+        file_put_contents($file, encryptData(array_values($currentData)));
         echo json_encode(['success' => true, 'message' => 'Categoria removida.']);
     } else {
         http_response_code(400);

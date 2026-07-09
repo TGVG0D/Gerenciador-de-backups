@@ -295,9 +295,9 @@ if (!$totpEnabled) {
                             <li>Digite o código de 6 dígitos gerado pelo app para confirmar</li>
                         </ol>
 
-                        <!-- QR Code via Google Charts API -->
+                        <!-- QR Code via api.qrserver.com (Google Charts foi descontinuado) -->
                         <div class="qr-container">
-                            <img src="https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=<?php echo urlencode($qrUrl); ?>" alt="QR Code 2FA">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=M&data=<?php echo urlencode($qrUrl); ?>" alt="QR Code 2FA">
                         </div>
 
                         <p style="color: #94a3b8; font-size: 0.8rem; text-align: center;">Ou digite manualmente a chave secreta:</p>
