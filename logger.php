@@ -6,6 +6,8 @@
  * Niveis: SUCCESS | INFO | WARNING | ERROR
  */
 
+require_once __DIR__ . '/crypto.php';
+
 function logEvent(string $event, string $message, array $extra = [], string $level = 'INFO'): void {
     $timestamp = date('Y-m-d H:i:s');
     $ip        = $_SERVER['REMOTE_ADDR'] ?? 'N/A';
@@ -13,10 +15,32 @@ function logEvent(string $event, string $message, array $extra = [], string $lev
     $colors = ['SUCCESS' => 3066993, 'INFO' => 3447003, 'WARNING' => 15105570, 'ERROR' => 15158332];
     $emojis = ['SUCCESS' => '✅', 'INFO' => 'ℹ️', 'WARNING' => '⚠️', 'ERROR' => '❌'];
 
-    // 1. Grava no activity.log
+    // 1. Grava no activity.log de forma criptografada
     $entry = ['timestamp' => $timestamp, 'level' => $level, 'event' => $event, 'message' => $message, 'ip' => $ip];
     if (!empty($extra)) $entry['extra'] = $extra;
-    file_put_contents(__DIR__ . '/activity.log', json_encode($entry, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+    
+    $logFile = __DIR__ . '/activity.log';
+    $currentLogs = [];
+    if (file_exists($logFile)) {
+        $raw = file_get_contents($logFile);
+        if (!empty($raw) && $raw[0] === '{') {
+            // Logs antigos em texto puro
+            $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $decoded = json_decode($line, true);
+                if ($decoded) $currentLogs[] = $decoded;
+            }
+        } else {
+            // Logs criptografados
+            $currentLogs = decryptData($raw);
+        }
+    }
+    $currentLogs[] = $entry;
+    // Mantém no máximo 500 logs para não pesar o arquivo JSON criptografado
+    if (count($currentLogs) > 500) {
+        $currentLogs = array_slice($currentLogs, -500);
+    }
+    file_put_contents($logFile, encryptData($currentLogs), LOCK_EX);
 
     // 2. Le DISCORD_WEBHOOK_URL diretamente do .env
     $discordUrl = '';

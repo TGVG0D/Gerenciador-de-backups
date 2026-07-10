@@ -33,7 +33,7 @@ O **Gerenciador de Backups** é uma aplicação web PHP single-tenant (usuário 
 - ✅ Categorias e subcategorias hierárquicas
 - ✅ Filtragem por categoria e busca em tempo real
 - ✅ Criptografia AES-256-CBC com Salt + Pepper + PBKDF2 nos dados
-- ✅ Atualização automática via GitHub Webhook
+- ✅ Atualização automática silenciosa (Pull-Based) a cada 12h
 - ✅ Interface dark mode com glassmorphism
 - ✅ URLs limpas sem extensão `.php`
 - ✅ Proteção contra acesso direto a arquivos sensíveis
@@ -55,19 +55,21 @@ Backups/
 ├── profile.php           ← Página de perfil (alterar credenciais + 2FA)
 ├── 404.php               ← Página de erro 404 personalizada
 │
-├── auth.php              ← Core: sessão, login, criptografia, helpers
+├── auth.php              ← Autenticação, sessão e rotas de login
 ├── totp.php              ← Implementação TOTP (RFC 6238) nativa
+├── crypto.php            ← Criptografia AES-256-CBC, PBKDF2, read/write env
 │
 ├── api.php               ← API REST de backups (GET/POST/PUT/DELETE)
 ├── api_categorias.php    ← API REST de categorias (GET/POST/PUT/DELETE)
-├── webhook.php           ← Endpoint GitHub Webhook (auto-update)
+├── auto_update.php       ← Sistema de atualização autônomo (pull a cada 12h)
 │
 ├── script.js             ← JavaScript frontend: AJAX, renderização, modais
 ├── style.css             ← Estilos globais (dark mode, glassmorphism)
 │
 ├── dados.json            ← Banco de dados de backups (criptografado)
 ├── categorias.json       ← Banco de dados de categorias (criptografado)
-└── webhook.log           ← Log de execuções do webhook (gerado automaticamente)
+├── activity.log          ← Log de atividades do painel (criptografado)
+└── update.log            ← Log de execuções do autoupdate (criptografado)
 ```
 
 ---
@@ -103,11 +105,9 @@ TOTP_SECRET=<chave base32 do authenticator>
 # Criptografia dos dados (gerado automaticamente na 1ª gravação)
 DATA_ENCRYPTION_KEY=<hex 64 chars>
 
-# Webhook GitHub (gerado automaticamente na 1ª requisição ao webhook.php)
-WEBHOOK_SECRET=<hex 40 chars>
-
-# Branch a monitorar (padrão: main)
-WEBHOOK_BRANCH=main
+# Atualização Automática (Configurado pelo painel)
+AUTO_UPDATE_REPO=https://github.com/TGVG0D/Gerenciador-de-backups.git
+PROTECTED_FILES=.env, dados.json, categorias.json, activity.log, update.log, last_update.txt
 ```
 
 > Se o `.env` não existir ou estiver incompleto, a aplicação tenta ler variáveis legadas (`APP_USER`, `APP_PASS`) e migra automaticamente para hash.
@@ -142,11 +142,12 @@ Browser
 ### Camadas
 | Camada | Arquivos | Responsabilidade |
 |---|---|---|
-| **Autenticação** | `auth.php`, `totp.php` | Sessão, login, 2FA, criptografia |
+| **Autenticação** | `auth.php`, `totp.php` | Sessão, login, 2FA |
+| **Criptografia** | `crypto.php` | Funções core de Salt+Pepper, PBKDF2 e AES-256 |
 | **Páginas** | `index.php`, `login.php`, `profile.php` | UI renderizada pelo PHP |
 | **API** | `api.php`, `api_categorias.php` | CRUD via fetch/AJAX |
 | **Frontend** | `script.js`, `style.css` | Interatividade, renderização dinâmica |
-| **Integração** | `webhook.php` | GitHub auto-deploy |
+| **Integração** | `auto_update.php` | GitHub pull auto-deploy a cada 12h |
 | **Dados** | `dados.json`, `categorias.json` | Persistência (JSON cifrado) |
 | **Config** | `.env`, `.htaccess` | Segredos e regras do servidor |
 

@@ -112,21 +112,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+
+
 // --- Ação: Atualizar Deploy Automático ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_github_webhook') {
-    $repo = trim($_POST['webhook_repo'] ?? '');
-    $branch = trim($_POST['webhook_branch'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_auto_deploy') {
+    $repo = trim($_POST['auto_update_repo'] ?? '');
     $protected = trim($_POST['protected_files'] ?? '');
     
-    if (empty($repo)) $repo = 'origin';
-    $env['WEBHOOK_REPO'] = $repo;
-    $env['WEBHOOK_BRANCH'] = empty($branch) ? 'main' : $branch;
-    $env['PROTECTED_FILES'] = empty($protected) ? '.env, dados.json, categorias.json' : $protected;
+    if (empty($repo)) $repo = 'https://github.com/TGVG0D/Gerenciador-de-backups.git';
+    $env['AUTO_UPDATE_REPO'] = $repo;
+    $env['PROTECTED_FILES'] = empty($protected) ? '.env, dados.json, categorias.json, activity.log, update.log, last_update.txt' : $protected;
     
     if (writeEnv($envFile, $env)) {
-        $message = "Configurações do GitHub Webhook salvas.";
+        $message = "Configurações de Atualização Automática salvas.";
         $messageType = "success";
-        logEvent('profile_updated', 'Configurações de Deploy Automático alteradas.', [], 'INFO');
+        logEvent('profile_updated', 'Configurações de Atualização Automática alteradas.', [], 'INFO');
     }
 }
 
@@ -359,38 +359,28 @@ if (!$totpEnabled) {
                     </form>
                 </div>
 
-                <!-- Seção: Deploy Automático (GitHub Webhooks) -->
+
+
+                <!-- Seção: Atualização Automática -->
                 <div class="section-card">
                     <h3>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                        Atualização Automática (GitHub)
+                        Atualização Automática (A cada 12h)
                     </h3>
-                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">Configure a integração para o seu servidor puxar as atualizações do GitHub automaticamente, ignorando os arquivos protegidos.</p>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">O servidor buscará atualizações silenciosamente a cada 12 horas baseando-se no repositório abaixo.</p>
                     <form method="POST" action="profile.php">
-                        <input type="hidden" name="action" value="update_github_webhook">
+                        <input type="hidden" name="action" value="update_auto_deploy">
                         <div class="form-group">
-                            <label>1. Payload URL (Copie e cole isso LÁ nas configurações do GitHub)</label>
-                            <input type="text" value="https://<?php echo $_SERVER['HTTP_HOST']; ?>/webhook.php" readonly style="background: rgba(0,0,0,0.3); color:#94a3b8; cursor: text;">
-                        </div>
-                        <div class="form-group">
-                            <label>2. Secret Key (Copie e cole isso LÁ nas configurações do GitHub)</label>
-                            <input type="text" value="<?php echo htmlspecialchars($env['WEBHOOK_SECRET'] ?? 'Será gerado na primeira chamada ao webhook.'); ?>" readonly style="background: rgba(0,0,0,0.3); color:#94a3b8; cursor: text;">
-                        </div>
-                        <div class="form-group">
-                            <label for="webhook_repo">3. URL Pública do seu Repositório (Cole AQUI o link do seu GitHub)</label>
-                            <input type="text" id="webhook_repo" name="webhook_repo" value="<?php echo htmlspecialchars($env['WEBHOOK_REPO'] ?? 'origin'); ?>" placeholder="https://github.com/usuario/repositorio.git">
-                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Como seu projeto é open-source, você pode colocar a URL pública HTTPS aqui (ex: https://github.com/user/repo.git). Se deixar "origin", usará a configuração local do Git.</span>
-                        </div>
-                        <div class="form-group">
-                            <label for="webhook_branch">Branch Rastreada</label>
-                            <input type="text" id="webhook_branch" name="webhook_branch" value="<?php echo htmlspecialchars($env['WEBHOOK_BRANCH'] ?? 'main'); ?>" placeholder="main">
+                            <label for="auto_update_repo">URL do Repositório Git (Padrão Oficial)</label>
+                            <input type="text" id="auto_update_repo" name="auto_update_repo" value="<?php echo htmlspecialchars($env['AUTO_UPDATE_REPO'] ?? 'https://github.com/TGVG0D/Gerenciador-de-backups.git'); ?>" placeholder="https://github.com/usuario/repositorio.git">
+                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Modifique apenas se você fez um fork (cópia) do repositório para o seu próprio GitHub.</span>
                         </div>
                         <div class="form-group">
                             <label for="protected_files">Arquivos Protegidos (Separados por vírgula)</label>
-                            <textarea id="protected_files" name="protected_files" rows="3" placeholder=".env, dados.json, categorias.json"><?php echo htmlspecialchars($env['PROTECTED_FILES'] ?? ".env, dados.json, categorias.json, activity.log, webhook.log"); ?></textarea>
-                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Estes arquivos não serão apagados nem substituídos pelo GitHub.</span>
+                            <textarea id="protected_files" name="protected_files" rows="3" placeholder=".env, dados.json, categorias.json"><?php echo htmlspecialchars($env['PROTECTED_FILES'] ?? ".env, dados.json, categorias.json, activity.log, update.log, last_update.txt"); ?></textarea>
+                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Estes arquivos e seus dados NUNCA serão sobrescritos pelas atualizações.</span>
                         </div>
-                        <button type="submit" class="btn-submit" style="width: 100%; background: #334155;">Salvar Configurações do Deploy</button>
+                        <button type="submit" class="btn-submit" style="width: 100%; background: #334155;">Salvar Configurações de Atualização</button>
                     </form>
                 </div>
 

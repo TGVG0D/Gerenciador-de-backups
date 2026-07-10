@@ -5,14 +5,21 @@ checkLogin();
 $logFile = __DIR__ . '/activity.log';
 $logs = [];
 if (file_exists($logFile)) {
-    $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $decoded = json_decode($line, true);
-        if ($decoded) {
-            $logs[] = $decoded;
+    $raw = file_get_contents($logFile);
+    if (!empty($raw) && $raw[0] === '{') {
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $decoded = json_decode($line, true);
+            if ($decoded) $logs[] = $decoded;
         }
+    } else {
+        $logs = decryptData($raw);
     }
-    $logs = array_reverse($logs); // Mais recentes primeiro
+    if (is_array($logs)) {
+        $logs = array_reverse($logs); // Mais recentes primeiro
+    } else {
+        $logs = [];
+    }
 }
 ?>
 <!DOCTYPE html>
