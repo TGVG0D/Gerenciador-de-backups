@@ -1,4 +1,5 @@
 # Variáveis de ambiente
+.env
 
 # Backups
 Backups.zip
@@ -6,6 +7,7 @@ Backups.zip
 
 # Dados sensíveis
 dados.json
+categorias.json
 
 # Arquivos de autenticação e segurança (opcional)
 auth.php

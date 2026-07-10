@@ -12,6 +12,8 @@
 
 $envFile = __DIR__ . '/.env';
 
+require_once __DIR__ . '/logger.php';
+
 function readWebhookEnv($path) {
     if (!file_exists($path)) return [];
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -81,8 +83,18 @@ if ($pushedBranch !== 'refs/heads/' . $branch) {
     exit;
 }
 
+// Atualiza o arquivo exclude do git com a lista do painel
+$protectedStr = $env['PROTECTED_FILES'] ?? '.env, dados.json, categorias.json, activity.log, webhook.log';
+$protectedList = array_filter(array_map('trim', explode(',', $protectedStr)));
+$excludeDir = __DIR__ . '/.git/info';
+if (is_dir($excludeDir)) {
+    file_put_contents($excludeDir . '/exclude', implode("\n", $protectedList) . "\n");
+}
+
 $projectDir = escapeshellarg(__DIR__);
-$command = "cd {$projectDir} && git pull origin " . escapeshellarg($branch) . " 2>&1";
+$repoArg = escapeshellarg($env['WEBHOOK_REPO'] ?? 'origin');
+$branchArg = escapeshellarg($branch);
+$command = "cd {$projectDir} && git fetch {$repoArg} {$branchArg} 2>&1 && git reset --hard FETCH_HEAD 2>&1";
 $output = shell_exec($command);
 $timestamp = date('Y-m-d H:i:s');
 
@@ -93,6 +105,13 @@ $logEntry .= "Mensagem: " . ($data['head_commit']['message'] ?? 'N/A') . "\n";
 $logEntry .= "Git output:\n{$output}\n";
 $logEntry .= str_repeat('-', 60) . "\n";
 file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+
+logEvent('webhook_deploy', 'Deploy automático executado via GitHub.', [
+    'Branch'  => $branch,
+    'Commit'  => substr($data['after'] ?? '', 0, 8),
+    'Autor'   => $data['pusher']['name'] ?? 'N/A',
+    'Output'  => trim($output ?? ''),
+], 'INFO');
 
 http_response_code(200);
 header('Content-Type: application/json');

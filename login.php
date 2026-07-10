@@ -9,6 +9,10 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
 
 // Verifica se deve mostrar o formulário 2FA
 $show2faForm = isset($show2fa) && $show2fa === true;
+
+// Verifica se há dica de senha
+$envParams = readEnv(__DIR__ . '/.env');
+$passHint = $envParams['APP_PASS_HINT'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -88,6 +92,15 @@ $show2faForm = isset($show2fa) && $show2fa === true;
                 </div>
                 <button type="submit" class="btn-submit">Entrar</button>
             </form>
+
+            <?php if($passHint): ?>
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <a href="#" onclick="document.getElementById('hint-box').style.display='block'; this.style.display='none'; return false;" style="color: var(--primary-color); font-size: 0.85rem; text-decoration: none;">Esqueci minha senha &#128161;</a>
+                <div id="hint-box" style="display: none; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-size: 0.85rem; color: #cbd5e1;">
+                    <strong>Dica:</strong> <?php echo htmlspecialchars($passHint); ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Step 2: 2FA -->

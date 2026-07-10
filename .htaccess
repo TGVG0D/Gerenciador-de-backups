@@ -1,4 +1,4 @@
-<FilesMatch "^\.env|dados\.json|categorias\.json|totp\.php|\.htaccess$">
+<FilesMatch "^\.env|dados\.json|categorias\.json|totp\.php|activity\.log|\.htaccess$">
     Require all denied
 </FilesMatch>
 

@@ -80,6 +80,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// --- Ação: Atualizar Dica de Senha ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_hint') {
+    $hint = trim($_POST['pass_hint'] ?? '');
+    if (empty($hint)) {
+        unset($env['APP_PASS_HINT']);
+        $message = "Dica de senha removida.";
+    } else {
+        $env['APP_PASS_HINT'] = $hint;
+        $message = "Dica de senha salva.";
+    }
+    if (writeEnv($envFile, $env)) {
+        $messageType = "success";
+        logEvent('profile_updated', 'Dica de senha alterada.', [], 'INFO');
+    }
+}
+
+// --- Ação: Atualizar Discord Webhook ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_discord') {
+    $discordUrl = trim($_POST['discord_url'] ?? '');
+    if (empty($discordUrl)) {
+        unset($env['DISCORD_WEBHOOK_URL']);
+        $message = "Discord Webhook removido.";
+    } else {
+        $env['DISCORD_WEBHOOK_URL'] = $discordUrl;
+        $message = "Discord Webhook configurado.";
+    }
+    if (writeEnv($envFile, $env)) {
+        $messageType = "success";
+        logEvent('profile_updated', 'Discord Webhook alterado.', [], 'INFO');
+    }
+}
+
+// --- Ação: Atualizar Deploy Automático ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_github_webhook') {
+    $repo = trim($_POST['webhook_repo'] ?? '');
+    $branch = trim($_POST['webhook_branch'] ?? '');
+    $protected = trim($_POST['protected_files'] ?? '');
+    
+    if (empty($repo)) $repo = 'origin';
+    $env['WEBHOOK_REPO'] = $repo;
+    $env['WEBHOOK_BRANCH'] = empty($branch) ? 'main' : $branch;
+    $env['PROTECTED_FILES'] = empty($protected) ? '.env, dados.json, categorias.json' : $protected;
+    
+    if (writeEnv($envFile, $env)) {
+        $message = "Configurações do GitHub Webhook salvas.";
+        $messageType = "success";
+        logEvent('profile_updated', 'Configurações de Deploy Automático alteradas.', [], 'INFO');
+    }
+}
+
 // --- Gerar novo segredo para configuração ---
 $newSecret = '';
 $qrUrl = '';
@@ -114,6 +164,21 @@ if (!$totpEnabled) {
             background: rgba(255, 71, 87, 0.1);
             color: #ff4757;
             border: 1px solid rgba(255, 71, 87, 0.2);
+        }
+        .btn-danger {
+            background: rgba(255, 71, 87, 0.1);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-danger:hover {
+            background: #ff4757;
+            color: white;
         }
         .profile-container {
             max-width: 550px;
@@ -261,7 +326,75 @@ if (!$totpEnabled) {
                     </form>
                 </div>
 
-                <!-- Seção: 2FA -->
+                <!-- Seção: Dica de Senha -->
+                <div class="section-card">
+                    <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Dica de Senha (Opcional)
+                    </h3>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">Crie uma frase que lembre a sua senha. Ela ficará visível na tela de login para te ajudar, caso você esqueça.</p>
+                    <form method="POST" action="profile.php">
+                        <input type="hidden" name="action" value="update_hint">
+                        <div class="form-group">
+                            <input type="text" id="pass_hint" name="pass_hint" value="<?php echo htmlspecialchars($env['APP_PASS_HINT'] ?? ''); ?>" placeholder="Ex: Nome do meu primeiro cachorro e ano de nascimento">
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: 100%;">Salvar Dica</button>
+                    </form>
+                </div>
+
+                <!-- Seção: Discord Webhook -->
+                <div class="section-card">
+                    <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        Notificações no Discord (Logs)
+                    </h3>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">Cole a URL do webhook do seu servidor do Discord para receber alertas de login, backups e alterações.</p>
+                    <form method="POST" action="profile.php">
+                        <input type="hidden" name="action" value="update_discord">
+                        <div class="form-group">
+                            <input type="url" id="discord_url" name="discord_url" value="<?php echo htmlspecialchars($env['DISCORD_WEBHOOK_URL'] ?? ''); ?>" placeholder="https://discord.com/api/webhooks/...">
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: 100%; background: #5865F2; margin-bottom: 1rem;">Salvar Webhook</button>
+                        <a href="logs.php" class="btn-submit" style="display: block; text-align: center; text-decoration: none; width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.1);">Visualizar Logs no Navegador</a>
+                    </form>
+                </div>
+
+                <!-- Seção: Deploy Automático (GitHub Webhooks) -->
+                <div class="section-card">
+                    <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        Atualização Automática (GitHub)
+                    </h3>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">Configure a integração para o seu servidor puxar as atualizações do GitHub automaticamente, ignorando os arquivos protegidos.</p>
+                    <form method="POST" action="profile.php">
+                        <input type="hidden" name="action" value="update_github_webhook">
+                        <div class="form-group">
+                            <label>1. Payload URL (Copie e cole isso LÁ nas configurações do GitHub)</label>
+                            <input type="text" value="https://<?php echo $_SERVER['HTTP_HOST']; ?>/webhook.php" readonly style="background: rgba(0,0,0,0.3); color:#94a3b8; cursor: text;">
+                        </div>
+                        <div class="form-group">
+                            <label>2. Secret Key (Copie e cole isso LÁ nas configurações do GitHub)</label>
+                            <input type="text" value="<?php echo htmlspecialchars($env['WEBHOOK_SECRET'] ?? 'Será gerado na primeira chamada ao webhook.'); ?>" readonly style="background: rgba(0,0,0,0.3); color:#94a3b8; cursor: text;">
+                        </div>
+                        <div class="form-group">
+                            <label for="webhook_repo">3. URL Pública do seu Repositório (Cole AQUI o link do seu GitHub)</label>
+                            <input type="text" id="webhook_repo" name="webhook_repo" value="<?php echo htmlspecialchars($env['WEBHOOK_REPO'] ?? 'origin'); ?>" placeholder="https://github.com/usuario/repositorio.git">
+                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Como seu projeto é open-source, você pode colocar a URL pública HTTPS aqui (ex: https://github.com/user/repo.git). Se deixar "origin", usará a configuração local do Git.</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="webhook_branch">Branch Rastreada</label>
+                            <input type="text" id="webhook_branch" name="webhook_branch" value="<?php echo htmlspecialchars($env['WEBHOOK_BRANCH'] ?? 'main'); ?>" placeholder="main">
+                        </div>
+                        <div class="form-group">
+                            <label for="protected_files">Arquivos Protegidos (Separados por vírgula)</label>
+                            <textarea id="protected_files" name="protected_files" rows="3" placeholder=".env, dados.json, categorias.json"><?php echo htmlspecialchars($env['PROTECTED_FILES'] ?? ".env, dados.json, categorias.json, activity.log, webhook.log"); ?></textarea>
+                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; display: block;">Estes arquivos não serão apagados nem substituídos pelo GitHub.</span>
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: 100%; background: #334155;">Salvar Configurações do Deploy</button>
+                    </form>
+                </div>
+
+                <!-- Seção: Segurança (2FA) -->
                 <div class="section-card">
                     <h3>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
@@ -280,7 +413,7 @@ if (!$totpEnabled) {
                         </p>
                         <form method="POST" action="profile.php" onsubmit="return confirm('Tem certeza que deseja desativar o 2FA? Isso reduzirá a segurança da sua conta.');">
                             <input type="hidden" name="action" value="disable_2fa">
-                            <button type="submit" class="btn-danger">Desativar 2FA</button>
+                            <button type="submit" class="btn-danger" style="width:100%;">Desativar 2FA</button>
                         </form>
 
                     <?php else: ?>

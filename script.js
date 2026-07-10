@@ -213,6 +213,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const catName = backup.categoriaId ? (allCategories.find(c => c.id === backup.categoriaId)?.nome || 'Sem Categoria') : 'Sem Categoria';
 
+            // Exibe a senha do ZIP com máscara se existir
+            const senhaHtml = backup.senha ? `
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                    <span style="font-size:0.8rem;color:#64748b;">&#128273;</span>
+                    <span class="senha-mask" style="font-family:monospace;color:#94a3b8;letter-spacing:0.2rem;font-size:0.85rem;">&bull;&bull;&bull;&bull;&bull;&bull;</span>
+                    <span class="senha-real" style="display:none;font-family:monospace;color:#3b82f6;font-size:0.85rem;">${escapeHTML(backup.senha)}</span>
+                    <button type="button" onclick="toggleSenhaCard(this)" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#94a3b8;cursor:pointer;font-size:0.72rem;padding:0.15rem 0.45rem;transition:all 0.2s;">&#128065; Ver</button>
+                </div>
+            ` : '';
+
             const card = document.createElement('div');
             card.className = 'backup-card';
             card.innerHTML = `
@@ -221,11 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="card-size">${escapeHTML(backup.tamanho)}</span>
                 </div>
                 <div style="margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">📂 ${escapeHTML(catName)}</span>
+                    <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">&#128193; ${escapeHTML(catName)}</span>
                 </div>
                 <div style="margin-bottom: 1rem;">
                     <span class="card-date">${formattedDate}</span>
                 </div>
+                ${senhaHtml}
                 <div class="card-info">
                     ${escapeHTML(backup.informacao).replace(/\n/g, '<br>')}
                 </div>
@@ -255,7 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
             data: document.getElementById('data').value,
             tamanho: document.getElementById('tamanho').value,
             informacao: document.getElementById('informacao').value,
-            categoriaId: document.getElementById('categoriaId').value
+            categoriaId: document.getElementById('categoriaId').value,
+            senha: document.getElementById('senha').value,
         };
 
         const id = document.getElementById('backup-id').value;
@@ -335,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tamanho').value = backup.tamanho;
             document.getElementById('informacao').value = backup.informacao;
             document.getElementById('categoriaId').value = backup.categoriaId || '';
+            document.getElementById('senha').value = backup.senha || '';
             
             document.querySelector('#modal-add .modal-header h2').textContent = 'Editar Backup';
             openModal(modalAdd);
@@ -384,9 +397,22 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('cat-nome').value = cat.nome;
             document.getElementById('cat-parent').value = cat.parentId || '';
             document.querySelector('#modal-cat .modal-header h2').textContent = 'Renomear Categoria';
-            
-            // Scroll para o topo do modal para ver o formulário
             document.querySelector('#modal-cat .modal-content').scrollTop = 0;
+        }
+    }
+
+    window.toggleSenhaCard = function(btn) {
+        const container = btn.parentElement;
+        const mask = container.querySelector('.senha-mask');
+        const real = container.querySelector('.senha-real');
+        if (real.style.display === 'none') {
+            mask.style.display = 'none';
+            real.style.display = 'inline';
+            btn.innerHTML = '&#128584; Ocultar';
+        } else {
+            mask.style.display = 'inline';
+            real.style.display = 'none';
+            btn.innerHTML = '&#128065; Ver';
         }
     }
 });

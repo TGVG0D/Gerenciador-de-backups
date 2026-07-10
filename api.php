@@ -62,6 +62,7 @@ if ($method === 'POST') {
         $newBackup['tamanho'] = htmlspecialchars(strip_tags(trim($newBackup['tamanho'])));
         $newBackup['informacao'] = htmlspecialchars(strip_tags(trim($newBackup['informacao'])));
         $newBackup['categoriaId'] = isset($newBackup['categoriaId']) && !empty($newBackup['categoriaId']) ? htmlspecialchars(strip_tags(trim($newBackup['categoriaId']))) : null;
+        $newBackup['senha'] = !empty($newBackup['senha'] ?? '') ? htmlspecialchars(strip_tags(trim($newBackup['senha']))) : '';
         
         $newBackup['id'] = uniqid(); // Add a unique ID
         $newBackup['timestamp'] = time(); // Add a timestamp for sorting
@@ -73,6 +74,7 @@ if ($method === 'POST') {
         
         file_put_contents($file, encryptData($currentData));
         
+        logEvent('backup_created', 'Novo backup adicionado: ' . $newBackup['nome'], ['Tamanho' => $newBackup['tamanho']], 'SUCCESS');
         echo json_encode(['success' => true, 'message' => 'Backup salvo com sucesso.']);
     } else {
         http_response_code(400);
@@ -88,19 +90,35 @@ if ($method === 'PUT') {
     if (isset($updateReq['id'], $updateReq['nome'], $updateReq['link'], $updateReq['data'], $updateReq['tamanho'], $updateReq['informacao'])) {
         $currentData = decryptData(file_get_contents($file));
         
+        $changes = [];
+        $nomeBackup = $updateReq['nome'] ?? 'N/A';
+        
         foreach ($currentData as &$item) {
             if ($item['id'] === $updateReq['id']) {
+                $oldData = $item;
+                
                 $item['nome'] = htmlspecialchars(strip_tags(trim($updateReq['nome'])));
                 $item['link'] = filter_var(trim($updateReq['link']), FILTER_SANITIZE_URL);
                 $item['data'] = htmlspecialchars(strip_tags(trim($updateReq['data'])));
                 $item['tamanho'] = htmlspecialchars(strip_tags(trim($updateReq['tamanho'])));
                 $item['informacao'] = htmlspecialchars(strip_tags(trim($updateReq['informacao'])));
                 $item['categoriaId'] = isset($updateReq['categoriaId']) && !empty($updateReq['categoriaId']) ? htmlspecialchars(strip_tags(trim($updateReq['categoriaId']))) : null;
+                $item['senha'] = !empty($updateReq['senha'] ?? '') ? htmlspecialchars(strip_tags(trim($updateReq['senha']))) : '';
+                
+                foreach(['nome', 'link', 'data', 'tamanho', 'informacao', 'categoriaId', 'senha'] as $field) {
+                    $oldVal = $oldData[$field] ?? '';
+                    $newVal = $item[$field] ?? '';
+                    if ($oldVal !== $newVal) {
+                        $changes[$field] = ($oldVal === '' ? '(Vazio)' : $oldVal) . ' -> ' . ($newVal === '' ? '(Vazio)' : $newVal);
+                    }
+                }
+                $nomeBackup = $item['nome'];
                 break;
             }
         }
         
         file_put_contents($file, encryptData($currentData));
+        logEvent('backup_updated', 'Backup atualizado: ' . $nomeBackup, $changes, 'INFO');
         echo json_encode(['success' => true, 'message' => 'Backup atualizado com sucesso.']);
     } else {
         http_response_code(400);
@@ -116,11 +134,18 @@ if ($method === 'DELETE') {
     
     if(isset($deleteReq['id'])) {
         $currentData = decryptData(file_get_contents($file));
-        $currentData = array_filter($currentData, function($item) use ($deleteReq) {
-            return $item['id'] !== $deleteReq['id'];
+        $deletedName = 'Desconhecido';
+        
+        $currentData = array_filter($currentData, function($item) use ($deleteReq, &$deletedName) {
+            if ($item['id'] === $deleteReq['id']) {
+                $deletedName = $item['nome'] ?? 'Desconhecido';
+                return false;
+            }
+            return true;
         });
         
         file_put_contents($file, encryptData(array_values($currentData)));
+        logEvent('backup_deleted', 'Backup removido: ' . $deletedName, ['ID' => $deleteReq['id']], 'WARNING');
         echo json_encode(['success' => true, 'message' => 'Backup removido.']);
     } else {
         http_response_code(400);

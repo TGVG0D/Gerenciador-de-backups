@@ -55,6 +55,7 @@ if ($method === 'POST') {
         $currentData[] = $newCat;
         
         file_put_contents($file, encryptData($currentData));
+        logEvent('category_created', 'Nova categoria criada: ' . $newCat['nome'], [], 'SUCCESS');
         echo json_encode(['success' => true, 'message' => 'Categoria salva.', 'id' => $newCat['id']]);
     } else {
         http_response_code(400);
@@ -70,15 +71,29 @@ if ($method === 'PUT') {
     if (isset($updateReq['id'], $updateReq['nome'])) {
         $currentData = decryptData(file_get_contents($file));
         
+        $changes = [];
+        $nomeCat = $updateReq['nome'] ?? 'N/A';
+        
         foreach ($currentData as &$item) {
             if ($item['id'] === $updateReq['id']) {
+                $oldData = $item;
                 $item['nome'] = htmlspecialchars(strip_tags(trim($updateReq['nome'])));
                 $item['parentId'] = isset($updateReq['parentId']) && !empty($updateReq['parentId']) ? htmlspecialchars(strip_tags(trim($updateReq['parentId']))) : null;
+                
+                foreach(['nome', 'parentId'] as $field) {
+                    $oldVal = $oldData[$field] ?? '';
+                    $newVal = $item[$field] ?? '';
+                    if ($oldVal !== $newVal) {
+                        $changes[$field] = ($oldVal === '' ? '(Raiz/Vazio)' : $oldVal) . ' -> ' . ($newVal === '' ? '(Raiz/Vazio)' : $newVal);
+                    }
+                }
+                $nomeCat = $item['nome'];
                 break;
             }
         }
         
         file_put_contents($file, encryptData($currentData));
+        logEvent('category_updated', 'Categoria atualizada: ' . $nomeCat, $changes, 'INFO');
         echo json_encode(['success' => true, 'message' => 'Categoria atualizada.']);
     } else {
         http_response_code(400);
@@ -94,20 +109,25 @@ if ($method === 'DELETE') {
     if(isset($deleteReq['id'])) {
         $idToDelete = $deleteReq['id'];
         $currentData = decryptData(file_get_contents($file));
+        $deletedName = 'Desconhecida';
         
-        // Delete cascading: delete the category and its subcategories
+        // Exclusão em cascata: deleta a categoria e suas subcategorias
         $idsToDelete = [$idToDelete];
         foreach ($currentData as $cat) {
-            if ($cat['parentId'] === $idToDelete) {
+            if ($cat['id'] === $idToDelete) {
+                $deletedName = $cat['nome'] ?? 'Desconhecida';
+            }
+            if (isset($cat['parentId']) && $cat['parentId'] === $idToDelete) {
                 $idsToDelete[] = $cat['id'];
             }
         }
-
+        
         $currentData = array_filter($currentData, function($item) use ($idsToDelete) {
             return !in_array($item['id'], $idsToDelete);
         });
         
         file_put_contents($file, encryptData(array_values($currentData)));
+        logEvent('category_deleted', 'Categoria removida: ' . $deletedName, ['ID' => $idToDelete], 'WARNING');
         echo json_encode(['success' => true, 'message' => 'Categoria removida.']);
     } else {
         http_response_code(400);

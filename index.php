@@ -72,8 +72,15 @@ checkLogin();
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="informacao">Informação / Descrição</label>
-                                <textarea id="informacao" name="informacao" rows="3" placeholder="Detalhes sobre o conteúdo do backup..." required></textarea>
+                                <label for="informacao">Informação / Descrição <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(opcional)</span></label>
+                                <textarea id="informacao" name="informacao" rows="3" placeholder="Detalhes sobre o conteúdo do backup..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="senha">&#128273; Senha do ZIP <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(opcional &mdash; preencha se o arquivo tem senha)</span></label>
+                                <div style="position:relative;">
+                                    <input type="password" id="senha" name="senha" placeholder="Deixe vazio se não há senha" autocomplete="off" style="padding-right:3rem;">
+                                    <button type="button" onclick="var i=document.getElementById('senha');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'&#128065;':'&#128584;';" style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;color:#64748b;">&#128065;</button>
+                                </div>
                             </div>
                             <button type="submit" class="btn-submit">Salvar Backup</button>
                         </form>
@@ -126,5 +133,21 @@ checkLogin();
         </div>
     </div>
     <script src="script.js?v=<?=time()?>"></script>
+
+    <!-- Botão flutuante de configurações -->
+    <a href="settings" id="btn-float-cfg" title="Configurações" style="
+        position:fixed;bottom:2rem;right:2rem;width:52px;height:52px;
+        background:rgba(30,41,59,0.9);border:1px solid rgba(255,255,255,0.15);
+        border-radius:50%;display:flex;align-items:center;justify-content:center;
+        text-decoration:none;backdrop-filter:blur(12px);
+        box-shadow:0 4px 20px rgba(0,0,0,0.35);transition:all 0.35s ease;z-index:990;
+    "
+    onmouseover="this.style.transform='rotate(45deg) scale(1.12)';this.style.background='rgba(59,130,246,0.85)'"
+    onmouseout="this.style.transform='rotate(0deg) scale(1)';this.style.background='rgba(30,41,59,0.9)'">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </a>
 </body>
 </html>
