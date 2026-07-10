@@ -1,6 +1,6 @@
 # 📦 Gerenciador de Backups — Documentação Completa
 
-> Documentação gerada em 08/07/2026. Cobre toda a arquitetura, segurança, APIs e fluxos da aplicação.
+> Documentação atualizada em 10/07/2026. Cobre toda a arquitetura, segurança, APIs e fluxos da aplicação.
 
 ---
 
@@ -16,9 +16,10 @@
 8. [APIs REST](#apis-rest)
 9. [Frontend](#frontend)
 10. [Segurança](#segurança)
-11. [Webhook GitHub (Auto-Update)](#webhook-github)
-12. [Referência de Variáveis de Ambiente](#variáveis-de-ambiente)
-13. [Fluxos de Uso](#fluxos-de-uso)
+11. [Atualização Automática (Pull-Based)](#atualização-automática)
+12. [Sistema de Logs (Criptografado)](#sistema-de-logs)
+13. [Referência de Variáveis de Ambiente](#variáveis-de-ambiente)
+14. [Fluxos de Uso](#fluxos-de-uso)
 
 ---
 
@@ -32,8 +33,10 @@ O **Gerenciador de Backups** é uma aplicação web PHP single-tenant (usuário 
 - ✅ CRUD completo de backups
 - ✅ Categorias e subcategorias hierárquicas
 - ✅ Filtragem por categoria e busca em tempo real
-- ✅ Criptografia AES-256-CBC com Salt + Pepper + PBKDF2 nos dados
+- ✅ Criptografia AES-256-CBC com Salt + Pepper + PBKDF2 nos dados, categorias E logs
+- ✅ Senha opcional para arquivos ZIP protegidos (visualização com máscara)
 - ✅ Atualização automática silenciosa (Pull-Based) a cada 12h
+- ✅ Sistema de logs criptografado com Discord Webhook
 - ✅ Interface dark mode com glassmorphism
 - ✅ URLs limpas sem extensão `.php`
 - ✅ Proteção contra acesso direto a arquivos sensíveis
@@ -218,7 +221,7 @@ Implementado em `totp.php` sem dependências externas.
 
 ## Sistema de Criptografia
 
-Esta é a camada de segurança mais robusta do projeto, implementada em `auth.php`.
+Esta é a camada de segurança mais robusta do projeto, implementada em `crypto.php`.
 
 ### Diagrama de Cifração
 
@@ -324,10 +327,13 @@ Retorna todos os backups (descriptografados).
     "tamanho": "500 MB",
     "informacao": "Backup completo do banco de dados",
     "categoriaId": "cat_xyz",
+    "senha": "minhasenha123",
     "timestamp": 1720000000
   }
 ]
 ```
+
+> **Campo `senha`**: Contém a senha do arquivo ZIP, se existir. Se o backup não tiver senha, o campo será uma string vazia `""`. Este campo é **criptografado em repouso** junto com todos os demais dados no `dados.json` via AES-256-CBC.
 
 #### `POST /api`
 Cria um novo backup.
@@ -340,19 +346,23 @@ Cria um novo backup.
   "data": "YYYY-MM-DD",
   "tamanho": "...",
   "informacao": "...",
-  "categoriaId": "cat_..."
+  "categoriaId": "cat_...",
+  "senha": "senhaOpcional"
 }
 ```
 
+> **Campo `senha` (opcional)**: Se preenchido, armazena a senha do arquivo ZIP de backup. O campo é sanitizado com `htmlspecialchars(strip_tags(trim(...)))` no backend. Se enviado vazio ou omitido, será salvo como string vazia `""`.
+
 **Validações backend:**
-- `nome`, `data`, `tamanho`, `informacao` → `htmlspecialchars` + `strip_tags` + `trim`
+- `nome`, `data`, `tamanho`, `informacao`, `senha` → `htmlspecialchars` + `strip_tags` + `trim`
 - `link` → `FILTER_SANITIZE_URL`
+- `senha` → Se vazio ou omitido, salvo como `""` (string vazia)
 - ID gerado com `uniqid()`
 - Timestamp UNIX adicionado automaticamente
 - Inserido no **início** do array (mais recente primeiro)
 
 #### `PUT /api`
-Atualiza um backup existente. Body inclui `id` + campos editáveis. Mesmas validações do POST.
+Atualiza um backup existente. Body inclui `id` + campos editáveis. Mesmas validações do POST. Alterações de cada campo são registradas no log (inclusive senha alterada).
 
 #### `DELETE /api`
 Remove um backup pelo ID.
@@ -475,6 +485,79 @@ Arquivo: `style.css`
 - **Modal**: aparece com fade-in + slide-up (`transform: translateY`)
 - **Responsivo**: grid auto-fill nos cards, form-row colapsa para 1 coluna em `≤768px`
 
+### Senha do ZIP nos Cards
+
+Quando um backup possui uma senha de ZIP, o card exibe uma seção especial:
+
+```
+┌──────────────────────────────────────────┐
+│  Backup Site X                    500 MB │
+│  📁 Produção                             │
+│  08/07/2026                              │
+│                                          │
+│  🔑 •••••• [👁 Ver]                       │  ← Senha mascarada
+│                                          │
+│  Backup completo do banco...             │
+│                                          │
+│  [Acessar Link]     [✏️] [🗑️]            │
+└──────────────────────────────────────────┘
+```
+
+#### Comportamento da Máscara de Senha
+
+| Estado | Texto exibido | Botão |
+|---|---|---|
+| **Oculta** (padrão) | `••••••` (6 bullets) | `👁 Ver` |
+| **Visível** | Senha real em azul (`#3b82f6`) | `🙈 Ocultar` |
+
+#### Implementação Frontend (`script.js`)
+
+```javascript
+// Renderização condicional: só exibe se backup.senha existir
+const senhaHtml = backup.senha ? `
+    <span class="senha-mask">••••••</span>
+    <span class="senha-real" style="display:none">${escapeHTML(backup.senha)}</span>
+    <button onclick="toggleSenhaCard(this)">👁 Ver</button>
+` : '';
+```
+
+```javascript
+// Alterna visibilidade da senha no card
+window.toggleSenhaCard = function(btn) {
+    const mask = container.querySelector('.senha-mask');
+    const real = container.querySelector('.senha-real');
+    if (real.style.display === 'none') {
+        mask.style.display = 'none';
+        real.style.display = 'inline';
+        btn.innerHTML = '🙈 Ocultar';
+    } else {
+        mask.style.display = 'inline';
+        real.style.display = 'none';
+        btn.innerHTML = '👁 Ver';
+    }
+}
+```
+
+#### Campo no Formulário de Backup (`index.php`)
+
+O campo de senha no modal de adicionar/editar backup usa `type="password"` com botão de toggle:
+
+```html
+<label>🔑 Senha do ZIP <span>(opcional — preencha se o arquivo tem senha)</span></label>
+<input type="password" id="senha" name="senha" placeholder="Deixe vazio se não há senha">
+<button type="button" onclick="toggle">👁</button>  <!-- Alterna password/text -->
+```
+
+| Detalhe | Valor |
+|---|---|
+| Tipo do campo | `password` (oculto por padrão) |
+| Botão de toggle | Alterna entre `type="password"` e `type="text"` |
+| Obrigatório | ❌ Não — campo totalmente opcional |
+| Sanitização backend | `htmlspecialchars(strip_tags(trim(...)))` |
+| Armazenamento | Criptografado junto com os demais dados no `dados.json` (AES-256-CBC) |
+| Ao editar | O campo é preenchido com a senha salva (`backup.senha`) |
+| Se vazio | Salvo como string vazia `""`, card não exibe seção de senha |
+
 ---
 
 ## Segurança
@@ -525,7 +608,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
 - `hash_equals()` em comparações de hash
 
 #### 7. Dados em repouso (AES-256-CBC)
-- `dados.json` e `categorias.json` são cifrados (ilegíveis sem a chave)
+- `dados.json`, `categorias.json` e `activity.log` são cifrados (ilegíveis sem a chave + pepper)
 
 #### 8. Gitignore de dados sensíveis
 ```gitignore
@@ -538,72 +621,119 @@ totp.php           # Código TOTP
 
 ---
 
-## Webhook GitHub
+## Atualização Automática
 
-Arquivo: `webhook.php`
+Arquivo: `auto_update.php`
 
-Permite que cada `git push` na branch monitorada **atualize o servidor automaticamente**.
+O sistema verifica automaticamente se há atualizações no repositório oficial a cada **12 horas**, de forma silenciosa e transparente, sem necessidade de configurar Webhooks no GitHub.
 
-### Fluxo de Execução
+### Como Funciona
 
 ```
-GitHub Push Event
+Usuário acessa /index.php
       │
       ▼
-POST /webhook.php
+<script> dispara fetch('auto_update.php') (fire-and-forget)
       │
-      ├─ 1. Valida método: deve ser POST
+      ▼
+auto_update.php
       │
-      ├─ 2. Lê WEBHOOK_SECRET do .env
-      │       └─ Se não existir → gera automaticamente e salva
+      ├─ 1. Lê last_update.txt → contém timestamp da última verificação
+      │       └─ Se diferença < 12h → exit (nada a fazer)
       │
-      ├─ 3. Verifica header X-Hub-Signature-256
-      │       HMAC-SHA256(payload, secret) == signature?
-      │       └─ Não → HTTP 403
+      ├─ 2. Atualiza last_update.txt com timestamp atual
       │
-      ├─ 4. Verifica branch
-      │       ref == "refs/heads/main"? (ou WEBHOOK_BRANCH do .env)
-      │       └─ Não → HTTP 200 + {"status":"ignored"}
+      ├─ 3. Lê AUTO_UPDATE_REPO e PROTECTED_FILES do .env
       │
-      ├─ 5. Executa: git pull origin main
+      ├─ 4. Escreve lista de arquivos protegidos em .git/info/exclude
       │
-      ├─ 6. Grava log em webhook.log com:
-      │       - Timestamp
-      │       - Hash do commit (8 chars)
-      │       - Autor do push
-      │       - Mensagem do commit
-      │       - Output do git pull
+      ├─ 5. git fetch <repo_url> main
       │
-      └─ 7. Retorna HTTP 200 + JSON com status e output
+      ├─ 6. git rev-list HEAD...FETCH_HEAD --count
+      │       └─ Se 0 commits novos → registra no log e exit
+      │
+      ├─ 7. Se há commits novos:
+      │       └─ git reset --hard FETCH_HEAD
+      │
+      ├─ 8. Grava resultado no update.log
+      │
+      └─ 9. Chama logEvent() → registra no activity.log + Discord
 ```
 
-### Configuração no GitHub
+### Configuração pelo Painel
 
-1. Acesse o repositório no GitHub
-2. `Settings` → `Webhooks` → `Add webhook`
-3. Configure:
-   - **Payload URL**: `https://seu-dominio.com/webhook`
-   - **Content type**: `application/json`
-   - **Secret**: valor de `WEBHOOK_SECRET` no `.env`
-   - **Which events**: `Just the push event`
-4. Clique em `Add webhook`
+No painel de **Perfil** (`profile.php`), o usuário pode configurar:
 
-### Exemplo de `webhook.log`
+| Campo | Descrição | Padrão |
+|---|---|---|
+| **URL do Repositório** | URL HTTPS do repositório Git público | `https://github.com/TGVG0D/Gerenciador-de-backups.git` |
+| **Arquivos Protegidos** | Lista de arquivos que NUNCA serão sobrescritos | `.env, dados.json, categorias.json, activity.log, update.log, last_update.txt` |
+
+### Exemplo de `update.log`
 
 ```
-[2026-07-08 20:08:57] Branch: main | Commit: a1b2c3d4
-Autor: seunome
-Mensagem: fix: corrige validação de backup
-Git output:
-From https://github.com/user/repo
-   a1b2c3d..e5f6g7h  main -> origin/main
-Updating a1b2c3d..e5f6g7h
-Fast-forward
- api.php | 4 ++--
+[2026-07-10 20:00:00] Atualização executada! Commits novos: 3
+Git Fetch Output:
+From https://github.com/TGVG0D/Gerenciador-de-backups
+   a1b2c3d..e5f6g7h  main       -> FETCH_HEAD
+Git Reset Output:
+HEAD is now at e5f6g7h fix: corrige validação
 ------------------------------------------------------------
 ```
 
-> ⚠️ **Permissão necessária**: O usuário do Apache/XAMPP deve ter permissão para executar `git` e gravar na pasta do projeto. Verifique com `git config --global --add safe.directory /caminho/do/projeto` se necessário.
+> ⚠️ **Permissão necessária**: O usuário do Apache/XAMPP deve ter permissão para executar `git` e gravar na pasta do projeto.
+
+---
+
+## Sistema de Logs
+
+Arquivo: `logger.php`
+
+O sistema de logs registra **todas as ações importantes** (login, criação/edição/exclusão de backups e categorias, alterações de perfil, deploy automático) de duas formas:
+
+### 1. Log Local Criptografado (`activity.log`)
+
+Os logs são armazenados como um **array JSON criptografado** usando o mesmo sistema AES-256-CBC + Salt + Pepper + PBKDF2 dos dados. Isso garante que mesmo com acesso direto ao servidor, os logs são ilegíveis.
+
+**Formato de cada entrada:**
+```json
+{
+  "timestamp": "2026-07-10 20:15:00",
+  "level": "SUCCESS",
+  "event": "backup_created",
+  "message": "Novo backup adicionado: Backup Site X",
+  "ip": "127.0.0.1",
+  "extra": { "Tamanho": "500 MB" }
+}
+```
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `timestamp` | string | Data e hora no formato `Y-m-d H:i:s` |
+| `level` | enum | `SUCCESS`, `INFO`, `WARNING` ou `ERROR` |
+| `event` | string | Identificador do evento (ex: `backup_created`, `login_success`) |
+| `message` | string | Descrição legível do evento |
+| `ip` | string | Endereço IP do cliente |
+| `extra` | object | Dados adicionais variáveis (ex: campos alterados) |
+
+**Limite de armazenamento:** Máximo de **500 entradas** no `activity.log`. Quando ultrapassado, as mais antigas são descartadas automaticamente.
+
+**Retrocompatibilidade:** Se o `activity.log` contiver logs antigos em texto puro (JSON por linha), o sistema os lê normalmente e os re-criptografa no próximo evento.
+
+### 2. Discord Webhook (Notificação em Tempo Real)
+
+Se `DISCORD_WEBHOOK_URL` estiver configurado no `.env`, cada evento também é enviado como um **embed** no Discord.
+
+| Nível | Cor | Emoji |
+|---|---|---|
+| SUCCESS | Verde (`#2ECC71`) | ✅ |
+| INFO | Azul (`#3498DB`) | ℹ️ |
+| WARNING | Laranja (`#E67E22`) | ⚠️ |
+| ERROR | Vermelho (`#E74C3C`) | ❌ |
+
+### Visualização (`logs.php`)
+
+A página de logs (`/logs`) descriptografa o `activity.log` e exibe as entradas em ordem cronológica reversa (mais recentes primeiro).
 
 ---
 
@@ -618,9 +748,10 @@ Arquivo: `.env` (nunca commitado no Git)
 | `APP_USER` | ❌ Legado | texto puro | Usuário legado (migrado automaticamente) |
 | `APP_PASS` | ❌ Legado | texto puro | Senha legada (migrado automaticamente) |
 | `TOTP_SECRET` | ❌ Opcional | base32 aleatório | Chave do Google Authenticator |
-| `DATA_ENCRYPTION_KEY` | ✅ | `bin2hex(random_bytes(32))` | Chave mestra de criptografia dos JSONs |
-| `WEBHOOK_SECRET` | ✅ | `bin2hex(random_bytes(20))` | Secret para validar o GitHub Webhook |
-| `WEBHOOK_BRANCH` | ❌ Opcional | texto | Branch a monitorar (padrão: `main`) |
+| `DATA_ENCRYPTION_KEY` | ✅ | `bin2hex(random_bytes(32))` | Chave mestra de criptografia dos JSONs e logs |
+| `AUTO_UPDATE_REPO` | ❌ Opcional | texto (URL) | URL do repositório Git para auto-update (padrão: repositório oficial) |
+| `PROTECTED_FILES` | ❌ Opcional | texto (lista CSV) | Arquivos protegidos contra sobrescrita pelo auto-update |
+| `DISCORD_WEBHOOK_URL` | ❌ Opcional | texto (URL) | URL do webhook Discord para notificações em tempo real |
 
 ---
 
@@ -657,14 +788,17 @@ Arquivo: `.env` (nunca commitado no Git)
          → SimpleTOTP::verify() → salva TOTP_SECRET no .env
 ```
 
-### Adicionar Backup
+### Adicionar Backup (com Senha do ZIP)
 ```
 /index → Clica "+ Adicionar Backup"
        → Preenche formulário no modal
-       → JS faz POST /api com JSON
-       → api.php: sanitiza, adiciona id + timestamp, decryptData() + encryptData()
-       → dados.json atualizado (criptografado)
+       → (Opcional) Preenche campo "Senha do ZIP"
+       → JS faz POST /api com JSON (inclui campo "senha")
+       → api.php: sanitiza TODOS os campos (incluindo senha), adiciona id + timestamp
+       → decryptData() do dados.json atual → adiciona backup → encryptData()
+       → dados.json atualizado (criptografado com Salt+Pepper+PBKDF2+AES-256-CBC)
        → JS recarrega lista
+       → Se senha existir: card exibe 🔑 com máscara ••••••
 ```
 
 ### Filtrar por Categoria
@@ -676,14 +810,15 @@ Arquivo: `.env` (nunca commitado no Git)
        → Grid atualizado sem nova requisição HTTP
 ```
 
-### Atualização Automática via GitHub
+### Atualização Automática (Pull-Based)
 ```
-developer → git commit + git push
-           → GitHub dispara POST /webhook
-           → webhook.php valida HMAC-SHA256
-           → git pull origin main executado no servidor
-           → Código atualizado automaticamente
-           → Log registrado em webhook.log
+Usuário acessa /index
+       → <script> dispara fetch('auto_update.php')
+       → auto_update.php verifica last_update.txt
+       → Se 12h passaram: git fetch + compara commits
+       → Se há commits novos: git reset --hard FETCH_HEAD
+       → Código atualizado (exceto arquivos protegidos)
+       → Log registrado em update.log + activity.log + Discord
 ```
 
 ---
