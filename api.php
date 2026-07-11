@@ -63,6 +63,7 @@ if ($method === 'POST') {
         $newBackup['informacao'] = htmlspecialchars(strip_tags(trim($newBackup['informacao'])));
         $newBackup['categoriaId'] = isset($newBackup['categoriaId']) && !empty($newBackup['categoriaId']) ? htmlspecialchars(strip_tags(trim($newBackup['categoriaId']))) : null;
         $newBackup['senha'] = !empty($newBackup['senha'] ?? '') ? htmlspecialchars(strip_tags(trim($newBackup['senha']))) : '';
+        $newBackup['cor'] = !empty($newBackup['cor'] ?? '') ? htmlspecialchars(strip_tags(trim($newBackup['cor']))) : '#3b82f6';
         
         $newBackup['id'] = uniqid(); // Add a unique ID
         $newBackup['timestamp'] = time(); // Add a timestamp for sorting
@@ -104,8 +105,9 @@ if ($method === 'PUT') {
                 $item['informacao'] = htmlspecialchars(strip_tags(trim($updateReq['informacao'])));
                 $item['categoriaId'] = isset($updateReq['categoriaId']) && !empty($updateReq['categoriaId']) ? htmlspecialchars(strip_tags(trim($updateReq['categoriaId']))) : null;
                 $item['senha'] = !empty($updateReq['senha'] ?? '') ? htmlspecialchars(strip_tags(trim($updateReq['senha']))) : '';
+                $item['cor'] = !empty($updateReq['cor'] ?? '') ? htmlspecialchars(strip_tags(trim($updateReq['cor']))) : '#3b82f6';
                 
-                foreach(['nome', 'link', 'data', 'tamanho', 'informacao', 'categoriaId', 'senha'] as $field) {
+                foreach(['nome', 'link', 'data', 'tamanho', 'informacao', 'categoriaId', 'senha', 'cor'] as $field) {
                     $oldVal = $oldData[$field] ?? '';
                     $newVal = $item[$field] ?? '';
                     if ($oldVal !== $newVal) {

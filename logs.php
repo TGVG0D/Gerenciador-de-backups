@@ -52,7 +52,7 @@ if (file_exists($logFile)) {
                 <h1><span class="highlight">L</span>ogs do Sistema</h1>
                 <p style="color: #94a3b8;">Histórico de atividades recentes no servidor.</p>
             </div>
-            <a href="profile.php" class="btn-submit" style="text-decoration:none; display:inline-block;">Voltar para o Perfil</a>
+            <a href="settings" class="btn-submit" style="text-decoration:none; display:inline-block;">Voltar para Configurações</a>
         </header>
 
         <?php if(empty($logs)): ?>

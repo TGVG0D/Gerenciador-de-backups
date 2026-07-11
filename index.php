@@ -82,6 +82,14 @@ checkLogin();
                                     <button type="button" onclick="var i=document.getElementById('senha');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'&#128065;':'&#128584;';" style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;color:#64748b;">&#128065;</button>
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label for="cor">&#127912; Cor do Card <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(opcional)</span></label>
+                                <div style="display:flex;gap:0.5rem;align-items:center;">
+                                    <input type="color" id="cor" name="cor" value="#3b82f6" style="width:50px;height:38px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:transparent;cursor:pointer;padding:2px;">
+                                    <span id="cor-hex" style="font-family:monospace;color:#94a3b8;font-size:0.85rem;">#3b82f6</span>
+                                    <button type="button" onclick="document.getElementById('cor').value='#3b82f6';document.getElementById('cor-hex').textContent='#3b82f6';" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#94a3b8;cursor:pointer;font-size:0.72rem;padding:0.2rem 0.5rem;">Reset</button>
+                                </div>
+                            </div>
                             <button type="submit" class="btn-submit">Salvar Backup</button>
                         </form>
                     </section>

@@ -55,7 +55,7 @@ Backups/
 │
 ├── index.php             ← Página principal (requer login)
 ├── login.php             ← Página de login (Etapa 1 + Etapa 2 se 2FA)
-├── profile.php           ← Página de perfil (alterar credenciais + 2FA)
+├── settings.php          ← Página de configurações (alterar credenciais + 2FA)
 ├── 404.php               ← Página de erro 404 personalizada
 │
 ├── auth.php              ← Autenticação, sessão e rotas de login
@@ -137,7 +137,7 @@ Browser
   │
   ├─ GET/POST login.php    → auth.php processa login
   │
-  ├─ GET/POST profile.php  → auth.php helpers → perfil e 2FA
+  ├─ GET/POST settings.php → auth.php helpers → configurações e 2FA
   │
   └─ POST webhook.php      → GitHub → git pull automático
 ```
@@ -147,7 +147,7 @@ Browser
 |---|---|---|
 | **Autenticação** | `auth.php`, `totp.php` | Sessão, login, 2FA |
 | **Criptografia** | `crypto.php` | Funções core de Salt+Pepper, PBKDF2 e AES-256 |
-| **Páginas** | `index.php`, `login.php`, `profile.php` | UI renderizada pelo PHP |
+| **Páginas** | `index.php`, `login.php`, `settings.php` | UI renderizada pelo PHP |
 | **API** | `api.php`, `api_categorias.php` | CRUD via fetch/AJAX |
 | **Frontend** | `script.js`, `style.css` | Interatividade, renderização dinâmica |
 | **Integração** | `auto_update.php` | GitHub pull auto-deploy a cada 12h |
@@ -662,7 +662,7 @@ auto_update.php
 
 ### Configuração pelo Painel
 
-No painel de **Perfil** (`profile.php`), o usuário pode configurar:
+No painel de **Configurações** (`settings.php`), o usuário pode configurar:
 
 | Campo | Descrição | Padrão |
 |---|---|---|

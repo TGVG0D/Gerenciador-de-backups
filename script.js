@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('backup-id').value = '';
         dataInput.value = today;
         document.querySelector('#modal-add .modal-header h2').textContent = 'Adicionar Novo Backup';
+        document.getElementById('cor').value = '#3b82f6';
+        document.getElementById('cor-hex').textContent = '#3b82f6';
         openModal(modalAdd);
     });
     btnClose.addEventListener('click', () => closeModal(modalAdd));
@@ -55,6 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const today = new Date().toISOString().split('T')[0];
     if (dataInput) dataInput.value = today;
+
+    const corInput = document.getElementById('cor');
+    const corHex = document.getElementById('cor-hex');
+    if (corInput && corHex) {
+        corInput.addEventListener('input', () => {
+            corHex.textContent = corInput.value;
+        });
+    }
 
     // --- Initialization ---
     init();
@@ -79,10 +89,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCategoriesSidebar() {
         const list = document.getElementById('categories-list');
+        if (!list) return;
+        
+        const countAll = allBackups.length;
+        const isAllActive = currentFilterId === null;
         list.innerHTML = `
-            <li style="margin-bottom: 0.5rem;">
-                <a href="#" class="cat-link ${currentFilterId === null ? 'active' : ''}" data-id="" style="display: block; padding: 0.5rem; color: #fff; text-decoration: none; border-radius: 6px; background: ${currentFilterId === null ? 'rgba(255,255,255,0.2)' : 'transparent'};">Todas</a>
-            </li>
+            <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left cat-link ${isAllActive ? 'bg-primary-container/20 text-primary font-bold border border-primary/20' : 'text-on-surface-variant hover:bg-white/5 transition-all'}" data-id="">
+                <span>Todas</span>
+                <span class="${isAllActive ? 'bg-primary/20 text-primary' : 'text-[10px] opacity-40'} text-[10px] px-2 py-0.5 rounded-full">${countAll}</span>
+            </button>
         `;
         
         // Render main categories
@@ -103,7 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update title
                 const title = currentFilterId ? allCategories.find(c => c.id === currentFilterId)?.nome : 'Todos';
-                document.getElementById('current-category-title').textContent = `Meus Backups (${title})`;
+                const titleEl = document.getElementById('current-category-title');
+                if (titleEl) titleEl.textContent = `Meus Backups (${title})`;
 
                 renderCategoriesSidebar(); // re-render to update active state
                 renderBackups(allBackups); // re-filter
@@ -113,13 +129,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function buildCategoryItem(cat, level) {
         const isActive = currentFilterId === cat.id;
-        const paddingLeft = 0.5 + (level * 1.5);
-        const bg = isActive ? 'rgba(255,255,255,0.2)' : 'transparent';
+        const paddingLeft = 0.75 + (level * 1);
         const bullet = level > 0 ? '↳ ' : '';
+        const count = allBackups.filter(b => {
+            if (b.categoriaId === cat.id) return true;
+            if (level === 0) {
+                const subs = allCategories.filter(c => c.parentId === cat.id).map(s => s.id);
+                return subs.includes(b.categoriaId);
+            }
+            return false;
+        }).length;
+        
         return `
-            <li style="margin-bottom: 0.5rem;">
-                <a href="#" class="cat-link" data-id="${cat.id}" style="display: block; padding: 0.5rem; padding-left: ${paddingLeft}rem; color: #fff; text-decoration: none; border-radius: 6px; background: ${bg}; transition: background 0.2s;">${bullet}${escapeHTML(cat.nome)}</a>
-            </li>
+            <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left cat-link ${isActive ? 'bg-primary-container/20 text-primary font-bold border border-primary/20' : 'text-on-surface-variant hover:bg-white/5 transition-all'}" data-id="${cat.id}" style="padding-left: ${paddingLeft}rem">
+                <span>${bullet}${escapeHTML(cat.nome)}</span>
+                <span class="${isActive ? 'bg-primary/20 text-primary' : 'text-[10px] opacity-40'} text-[10px] px-2 py-0.5 rounded-full">${count}</span>
+            </button>
         `;
     }
 
@@ -212,44 +237,57 @@ document.addEventListener('DOMContentLoaded', () => {
             const formattedDate = dateObj.toLocaleDateString('pt-BR');
             
             const catName = backup.categoriaId ? (allCategories.find(c => c.id === backup.categoriaId)?.nome || 'Sem Categoria') : 'Sem Categoria';
+            const corCard = backup.cor || '#3b82f6';
 
             // Exibe a senha do ZIP com máscara se existir
             const senhaHtml = backup.senha ? `
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-                    <span style="font-size:0.8rem;color:#64748b;">&#128273;</span>
-                    <span class="senha-mask" style="font-family:monospace;color:#94a3b8;letter-spacing:0.2rem;font-size:0.85rem;">&bull;&bull;&bull;&bull;&bull;&bull;</span>
-                    <span class="senha-real" style="display:none;font-family:monospace;color:#3b82f6;font-size:0.85rem;">${escapeHTML(backup.senha)}</span>
-                    <button type="button" onclick="toggleSenhaCard(this)" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#94a3b8;cursor:pointer;font-size:0.72rem;padding:0.15rem 0.45rem;transition:all 0.2s;">&#128065; Ver</button>
+                <div class="bg-surface-container-low/50 border border-glass-border rounded-xl p-3 mb-6 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-on-surface-variant text-[20px]">lock</span>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-on-surface-variant uppercase font-bold">Senha ZIP</span>
+                            <span class="font-mono text-sm tracking-widest senha-mask">••••••</span>
+                            <span class="font-mono text-sm senha-real hidden text-primary">${escapeHTML(backup.senha)}</span>
+                        </div>
+                    </div>
+                    <button type="button" class="text-primary hover:text-white transition-colors flex items-center gap-1 text-xs font-bold px-3 py-1 bg-primary/5 rounded-lg border border-primary/20 hover:bg-primary/20" onclick="toggleSenhaCard(this)">
+                        <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        <span>Ver</span>
+                    </button>
                 </div>
             ` : '';
 
             const card = document.createElement('div');
-            card.className = 'backup-card';
+            card.className = 'glass-panel rounded-2xl overflow-hidden relative group hover:border-primary/40 transition-all duration-300';
             card.innerHTML = `
-                <div class="card-header">
-                    <h3 class="card-title">${escapeHTML(backup.nome)}</h3>
-                    <span class="card-size">${escapeHTML(backup.tamanho)}</span>
-                </div>
-                <div style="margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">&#128193; ${escapeHTML(catName)}</span>
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <span class="card-date">${formattedDate}</span>
-                </div>
-                ${senhaHtml}
-                <div class="card-info">
-                    ${escapeHTML(backup.informacao).replace(/\n/g, '<br>')}
-                </div>
-                <div class="card-actions">
-                    <a href="${escapeHTML(backup.link)}" target="_blank" rel="noopener noreferrer" class="btn-link">Acessar Link</a>
-                    <button class="btn-edit" onclick="editBackup('${backup.id}')" title="Editar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button class="btn-delete" onclick="deleteBackup('${backup.id}')" title="Excluir">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
+                <div class="status-bar" style="background-color: ${corCard};"></div>
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-md font-bold border border-primary/20">${escapeHTML(catName)}</span>
+                        <div class="text-right">
+                            <p class="text-[10px] text-on-surface-variant font-medium">${formattedDate}</p>
+                            <p class="text-xs font-bold text-on-surface">${escapeHTML(backup.tamanho)}</p>
+                        </div>
+                    </div>
+                    <h4 class="text-lg font-bold text-white mb-2">${escapeHTML(backup.nome)}</h4>
+                    <p class="text-sm text-on-surface-variant mb-6 line-clamp-2">${escapeHTML(backup.informacao).replace(/\n/g, '<br>')}</p>
+                    ${senhaHtml}
+                    <div class="flex items-center gap-2">
+                        <a href="${escapeHTML(backup.link)}" target="_blank" rel="noopener noreferrer" class="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-glass-border flex items-center justify-center gap-2 transition-all no-underline text-center">
+                            <span class="material-symbols-outlined text-[20px]">link</span>
+                            <span>Acessar Link</span>
+                        </a>
+                        <button class="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/20 transition-all active:scale-95" onclick="editBackup('${backup.id}')">
+                            <span class="material-symbols-outlined text-[20px]">edit</span>
+                        </button>
+                        <button class="p-2.5 bg-danger/10 hover:bg-danger text-danger hover:text-white rounded-xl border border-danger/20 transition-all active:scale-95" onclick="deleteBackup('${backup.id}')">
+                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                        </button>
+                    </div>
                 </div>
             `;
+            grid.appendChild(card);
+        });
             grid.appendChild(card);
         });
     }
@@ -268,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             informacao: document.getElementById('informacao').value,
             categoriaId: document.getElementById('categoriaId').value,
             senha: document.getElementById('senha').value,
+            cor: document.getElementById('cor').value,
         };
 
         const id = document.getElementById('backup-id').value;
@@ -348,6 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('informacao').value = backup.informacao;
             document.getElementById('categoriaId').value = backup.categoriaId || '';
             document.getElementById('senha').value = backup.senha || '';
+            document.getElementById('cor').value = backup.cor || '#3b82f6';
+            document.getElementById('cor-hex').textContent = backup.cor || '#3b82f6';
             
             document.querySelector('#modal-add .modal-header h2').textContent = 'Editar Backup';
             openModal(modalAdd);
@@ -405,14 +446,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = btn.parentElement;
         const mask = container.querySelector('.senha-mask');
         const real = container.querySelector('.senha-real');
-        if (real.style.display === 'none') {
-            mask.style.display = 'none';
-            real.style.display = 'inline';
-            btn.innerHTML = '&#128584; Ocultar';
+        const icon = btn.querySelector('.material-symbols-outlined');
+        const text = btn.querySelector('span:not(.material-symbols-outlined)');
+        
+        if (real.classList.contains('hidden')) {
+            mask.classList.add('hidden');
+            real.classList.remove('hidden');
+            icon.textContent = 'visibility_off';
+            text.textContent = 'Ocultar';
         } else {
-            mask.style.display = 'inline';
-            real.style.display = 'none';
-            btn.innerHTML = '&#128065; Ver';
+            mask.classList.remove('hidden');
+            real.classList.add('hidden');
+            icon.textContent = 'visibility';
+            text.textContent = 'Ver';
         }
     }
 });
