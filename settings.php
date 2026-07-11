@@ -8,7 +8,7 @@ $messageType = '';
 $envFile = __DIR__ . '/.env';
 $env = readEnv($envFile);
 
-// Detecta se está usando hash ou texto puro s
+// Detecta se está usando hash ou texto puro 
 $currentUsername = '';
 if (isset($env['APP_USER_HASH'])) {
     $currentUsername = '(criptografado)';
