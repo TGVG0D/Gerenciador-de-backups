@@ -1,6 +1,11 @@
 <?php
 require_once 'auth.php';
+require_once 'totp.php';
 checkLogin();
+
+// Criar arquivos de dados caso não existam
+if (!file_exists(__DIR__ . '/dados.json')) file_put_contents(__DIR__ . '/dados.json', '[]');
+if (!file_exists(__DIR__ . '/categorias.json')) file_put_contents(__DIR__ . '/categorias.json', '[]');
 
 $message = '';
 $messageType = '';

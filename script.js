@@ -4,59 +4,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const dataInput = document.getElementById('data');
     const grid = document.getElementById('backup-grid');
     const modalAdd = document.getElementById('modal-add');
-    const btnOpen = document.getElementById('btn-open-modal');
-    const btnClose = document.getElementById('btn-close-modal');
-
-    // Categories Elements
     const modalCat = document.getElementById('modal-cat');
-    const btnOpenCat = document.getElementById('btn-open-cat-modal');
-    const btnCloseCat = document.getElementById('btn-close-cat-modal');
     const catForm = document.getElementById('cat-form');
     
     let allBackups = [];
     let allCategories = [];
     let currentFilterId = null;
     let currentSearchQuery = '';
+    let currentPage = 1;
+    const itemsPerPage = 9; // Configuração: 9 backups por página
 
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             currentSearchQuery = e.target.value.toLowerCase();
+            currentPage = 1; // Reseta para a página 1 ao pesquisar
             renderBackups(allBackups);
         });
     }
 
     // --- Modal Logic ---
-    function openModal(m) { m.classList.add('active'); }
-    function closeModal(m) { m.classList.remove('active'); }
+    window.openModal = function(type) {
+        if (type === 'Adicionar') {
+            form.reset();
+            document.getElementById('backup-id').value = '';
+            const today = new Date().toISOString().split('T')[0];
+            if (document.getElementById('data')) document.getElementById('data').value = today;
+            document.getElementById('modal-add-title').textContent = 'Adicionar Backup';
+            document.getElementById('cor').value = '#3b82f6';
+            document.getElementById('cor-hex').textContent = '#3b82f6';
+            modalAdd.classList.add('active');
+        } else if (type === 'Categoria') {
+            catForm.reset();
+            document.getElementById('cat-id').value = '';
+            document.getElementById('modal-cat-title').textContent = 'Gerenciar Categorias';
+            modalCat.classList.add('active');
+        }
+    }
 
-    btnOpen.addEventListener('click', () => {
-        form.reset();
-        document.getElementById('backup-id').value = '';
-        dataInput.value = today;
-        document.querySelector('#modal-add .modal-header h2').textContent = 'Adicionar Novo Backup';
-        document.getElementById('cor').value = '#3b82f6';
-        document.getElementById('cor-hex').textContent = '#3b82f6';
-        openModal(modalAdd);
-    });
-    btnClose.addEventListener('click', () => closeModal(modalAdd));
-    
-    btnOpenCat.addEventListener('click', () => {
-        catForm.reset();
-        document.getElementById('cat-id').value = '';
-        document.querySelector('#modal-cat .modal-header h2').textContent = 'Gerenciar Categorias';
-        openModal(modalCat);
-    });
-    btnCloseCat.addEventListener('click', () => closeModal(modalCat));
+    window.closeModal = function() {
+        if (modalAdd) modalAdd.classList.remove('active');
+        if (modalCat) modalCat.classList.remove('active');
+    }
 
-    [modalAdd, modalCat].forEach(m => {
-        m.addEventListener('click', (e) => {
-            if (e.target === m) closeModal(m);
+    // Bind close buttons dynamically
+    document.querySelectorAll('.modal-close-btn, .modal-close-bg').forEach(btn => {
+        btn.addEventListener('click', closeModal);
+    });
+
+    const btnOpenCat = document.getElementById('btn-open-cat-modal');
+    if (btnOpenCat) {
+        btnOpenCat.addEventListener('click', () => {
+            window.openModal('Categoria');
         });
-    });
-
-    const today = new Date().toISOString().split('T')[0];
-    if (dataInput) dataInput.value = today;
+    }
 
     const corInput = document.getElementById('cor');
     const corHex = document.getElementById('cor-hex');
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Categories API & Render ---
     async function loadCategories() {
         try {
-            const response = await fetch('api_categorias', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const response = await fetch('api_categorias.php', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             allCategories = await response.json();
             renderCategoriesSidebar();
             renderCategoriesModalList();
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const countAll = allBackups.length;
         const isAllActive = currentFilterId === null;
+        
         list.innerHTML = `
             <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left cat-link ${isAllActive ? 'bg-primary-container/20 text-primary font-bold border border-primary/20' : 'text-on-surface-variant hover:bg-white/5 transition-all'}" data-id="">
                 <span>Todas</span>
@@ -121,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const titleEl = document.getElementById('current-category-title');
                 if (titleEl) titleEl.textContent = `Meus Backups (${title})`;
 
+                currentPage = 1; // Reseta para a primeira página ao trocar de categoria
                 renderCategoriesSidebar(); // re-render to update active state
                 renderBackups(allBackups); // re-filter
             });
@@ -129,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function buildCategoryItem(cat, level) {
         const isActive = currentFilterId === cat.id;
-        const paddingLeft = 0.75 + (level * 1);
+        const paddingLeft = 0.75 + (level * 1); // Indentation for subcategories
         const bullet = level > 0 ? '↳ ' : '';
         const count = allBackups.filter(b => {
             if (b.categoriaId === cat.id) return true;
@@ -150,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCategoriesModalList() {
         const list = document.getElementById('modal-categories-list');
+        if(!list) return;
         list.innerHTML = '';
         const mains = allCategories.filter(c => !c.parentId);
         mains.forEach(main => {
@@ -165,11 +169,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const paddingLeft = level * 1.5;
         const bullet = level > 0 ? '↳ ' : '';
         return `
-            <li style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.2); margin-bottom: 0.5rem; border-radius: 6px; margin-left: ${paddingLeft}rem;">
-                <span>${bullet}${escapeHTML(cat.nome)}</span>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button type="button" class="btn-edit" onclick="editCategory('${cat.id}')" title="Renomear/Editar" style="padding: 0.3rem; font-size: 0.8rem;">Editar</button>
-                    <button type="button" class="btn-delete" onclick="deleteCategory('${cat.id}')" title="Excluir Categoria" style="padding: 0.3rem; font-size: 0.8rem;">Excluir</button>
+            <li class="flex justify-between items-center p-2 bg-surface-container rounded-lg border border-glass-border mb-2" style="margin-left: ${paddingLeft}rem;">
+                <span class="text-sm font-medium">${bullet}${escapeHTML(cat.nome)}</span>
+                <div class="flex gap-2">
+                    <button type="button" class="text-primary hover:text-white p-1 rounded hover:bg-primary/20 transition-all" onclick="editCategory('${cat.id}')" title="Renomear/Editar">
+                        <span class="material-symbols-outlined text-[16px]">edit</span>
+                    </button>
+                    <button type="button" class="text-danger hover:text-white p-1 rounded hover:bg-danger/20 transition-all" onclick="deleteCategory('${cat.id}')" title="Excluir Categoria">
+                        <span class="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
                 </div>
             </li>
         `;
@@ -197,25 +205,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Backups API & Render ---
     async function loadBackups() {
         try {
-            const response = await fetch('api', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const response = await fetch('api.php', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             allBackups = await response.json();
+            renderCategoriesSidebar(); // Atualiza contadores
             renderBackups(allBackups);
         } catch (error) {
             console.error('Erro ao carregar backups:', error);
-            grid.innerHTML = '<div class="empty-state">Erro ao carregar dados.</div>';
+            grid.innerHTML = '<div class="col-span-full text-center py-10 text-on-surface-variant">Erro ao carregar dados.</div>';
         }
     }
 
     function renderBackups(backups) {
+        if (!grid) return;
         grid.innerHTML = '';
 
         let filtered = backups;
         if (currentFilterId) {
-            // Include backups from the exact category and its subcategories
             const validCategoryIds = [currentFilterId];
             const subs = allCategories.filter(c => c.parentId === currentFilterId);
             subs.forEach(s => validCategoryIds.push(s.id));
-
             filtered = filtered.filter(b => validCategoryIds.includes(b.categoriaId));
         }
 
@@ -227,30 +235,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!filtered || filtered.length === 0) {
-            grid.innerHTML = '<div class="empty-state">Nenhum backup encontrado.</div>';
+            grid.innerHTML = '<div class="col-span-full text-center py-10 text-on-surface-variant flex flex-col items-center gap-2"><span class="material-symbols-outlined text-4xl opacity-50">search_off</span><p>Nenhum backup encontrado.</p></div>';
+            renderPagination(0);
             return;
         }
 
-        filtered.forEach(backup => {
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageItems = filtered.slice(startIndex, endIndex);
+
+        pageItems.forEach(backup => {
             const dateObj = new Date(backup.data);
             dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset());
             const formattedDate = dateObj.toLocaleDateString('pt-BR');
             
             const catName = backup.categoriaId ? (allCategories.find(c => c.id === backup.categoriaId)?.nome || 'Sem Categoria') : 'Sem Categoria';
             const corCard = backup.cor || '#3b82f6';
+            
+            // Lógica para transformar HEX em estilo de badge RGBA (Simulado para cor primária base)
+            const isDanger = corCard === '#ef4444' || corCard.toLowerCase() === 'red';
+            const isWarning = corCard === '#e67e22' || corCard === '#f59e0b';
+            
+            let badgeClasses = 'bg-primary/10 text-primary border-primary/20';
+            if (isDanger) badgeClasses = 'bg-error/20 text-error border-error/30';
+            else if (isWarning) badgeClasses = 'bg-warning/20 text-warning border-warning/30';
 
-            // Exibe a senha do ZIP com máscara se existir
             const senhaHtml = backup.senha ? `
                 <div class="bg-surface-container-low/50 border border-glass-border rounded-xl p-3 mb-6 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">lock</span>
                         <div class="flex flex-col">
                             <span class="text-[10px] text-on-surface-variant uppercase font-bold">Senha ZIP</span>
-                            <span class="font-mono text-sm tracking-widest senha-mask">••••••</span>
-                            <span class="font-mono text-sm senha-real hidden text-primary">${escapeHTML(backup.senha)}</span>
+                            <span class="font-mono text-sm tracking-widest password-field">••••••</span>
+                            <span class="font-mono text-sm hidden password-real text-primary">${escapeHTML(backup.senha)}</span>
                         </div>
                     </div>
-                    <button type="button" class="text-primary hover:text-white transition-colors flex items-center gap-1 text-xs font-bold px-3 py-1 bg-primary/5 rounded-lg border border-primary/20 hover:bg-primary/20" onclick="toggleSenhaCard(this)">
+                    <button class="text-primary hover:text-white transition-colors flex items-center gap-1 text-xs font-bold px-3 py-1 bg-primary/5 rounded-lg border border-primary/20 hover:bg-primary/20" onclick="togglePass(this)">
                         <span class="material-symbols-outlined text-[18px]">visibility</span>
                         <span>Ver</span>
                     </button>
@@ -263,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="status-bar" style="background-color: ${corCard};"></div>
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-4">
-                        <span class="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-md font-bold border border-primary/20">${escapeHTML(catName)}</span>
+                        <span class="${badgeClasses} text-[10px] px-2 py-1 rounded-md font-bold border">${escapeHTML(catName)}</span>
                         <div class="text-right">
                             <p class="text-[10px] text-on-surface-variant font-medium">${formattedDate}</p>
                             <p class="text-xs font-bold text-on-surface">${escapeHTML(backup.tamanho)}</p>
@@ -271,7 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <h4 class="text-lg font-bold text-white mb-2">${escapeHTML(backup.nome)}</h4>
                     <p class="text-sm text-on-surface-variant mb-6 line-clamp-2">${escapeHTML(backup.informacao).replace(/\n/g, '<br>')}</p>
+                    
                     ${senhaHtml}
+                    
                     <div class="flex items-center gap-2">
                         <a href="${escapeHTML(backup.link)}" target="_blank" rel="noopener noreferrer" class="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-glass-border flex items-center justify-center gap-2 transition-all no-underline text-center">
                             <span class="material-symbols-outlined text-[20px]">link</span>
@@ -288,85 +313,132 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             grid.appendChild(card);
         });
-            grid.appendChild(card);
-        });
+        
+        renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+        const container = document.getElementById('pagination-container');
+        const nav = document.getElementById('pagination-nav');
+        if (!container || !nav) return;
+
+        if (totalPages <= 1) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        nav.innerHTML = '';
+
+        // Botão Anterior
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors disabled:opacity-30 text-on-surface-variant';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.innerHTML = '<span class="material-symbols-outlined">chevron_left</span>';
+        prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; renderBackups(allBackups); } };
+        nav.appendChild(prevBtn);
+
+        // Botões de Páginas
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            if (i === currentPage) {
+                btn.className = 'w-10 h-10 rounded-lg flex items-center justify-center bg-primary text-on-primary font-bold shadow-md shadow-primary/20';
+            } else {
+                btn.className = 'w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/5 text-on-surface-variant font-bold transition-colors';
+            }
+            btn.textContent = i;
+            btn.onclick = () => { currentPage = i; renderBackups(allBackups); };
+            nav.appendChild(btn);
+        }
+
+        // Botão Próximo
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors disabled:opacity-30 text-on-surface-variant';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.innerHTML = '<span class="material-symbols-outlined">chevron_right</span>';
+        nextBtn.onclick = () => { if(currentPage < totalPages) { currentPage++; renderBackups(allBackups); } };
+        nav.appendChild(nextBtn);
     }
 
     // --- Forms Submit ---
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitBtn = form.querySelector('.btn-submit');
-        submitBtn.disabled = true;
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('.btn-submit');
+            submitBtn.disabled = true;
 
-        const formData = {
-            nome: document.getElementById('nome').value,
-            link: document.getElementById('link').value,
-            data: document.getElementById('data').value,
-            tamanho: document.getElementById('tamanho').value,
-            informacao: document.getElementById('informacao').value,
-            categoriaId: document.getElementById('categoriaId').value,
-            senha: document.getElementById('senha').value,
-            cor: document.getElementById('cor').value,
-        };
+            const formData = {
+                nome: document.getElementById('nome').value,
+                link: document.getElementById('link').value,
+                data: document.getElementById('data').value,
+                tamanho: document.getElementById('tamanho').value,
+                informacao: document.getElementById('informacao').value,
+                categoriaId: document.getElementById('categoriaId').value,
+                senha: document.getElementById('senha').value,
+                cor: document.getElementById('cor').value,
+            };
 
-        const id = document.getElementById('backup-id').value;
-        if (id) formData.id = id;
+            const id = document.getElementById('backup-id').value;
+            if (id) formData.id = id;
 
-        try {
-            const response = await fetch('api', {
-                method: id ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify(formData),
-            });
-            const result = await response.json();
-            if (result.success) {
-                closeModal(modalAdd);
-                loadBackups();
-            } else {
-                alert('Erro ao salvar: ' + result.message);
+            try {
+                const response = await fetch('api.php', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify(formData),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    closeModal();
+                    loadBackups();
+                } else {
+                    alert('Erro ao salvar: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erro de conexão ao salvar backup.');
+            } finally {
+                submitBtn.disabled = false;
             }
-        } catch (error) {
-            alert('Erro de conexão.');
-        } finally {
-            submitBtn.disabled = false;
-        }
-    });
+        });
+    }
 
-    catForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitBtn = catForm.querySelector('.btn-submit');
-        submitBtn.disabled = true;
+    if (catForm) {
+        catForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = catForm.querySelector('.btn-submit');
+            submitBtn.disabled = true;
 
-        const formData = {
-            nome: document.getElementById('cat-nome').value,
-            parentId: document.getElementById('cat-parent').value
-        };
+            const formData = {
+                nome: document.getElementById('cat-nome').value,
+                parentId: document.getElementById('cat-parent').value
+            };
 
-        const id = document.getElementById('cat-id').value;
-        if (id) formData.id = id;
+            const id = document.getElementById('cat-id').value;
+            if (id) formData.id = id;
 
-        try {
-            const response = await fetch('api_categorias', {
-                method: id ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify(formData),
-            });
-            const result = await response.json();
-            if (result.success) {
-                catForm.reset();
-                closeModal(modalCat); // Fechar modal ao salvar
-                await loadCategories();
-                loadBackups(); // Refresh backups in case category names changed
-            } else {
-                alert('Erro ao salvar: ' + result.message);
+            try {
+                const response = await fetch('api_categorias.php', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify(formData),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    catForm.reset();
+                    closeModal();
+                    await loadCategories();
+                    loadBackups();
+                } else {
+                    alert('Erro ao salvar: ' + result.message);
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro de conexão ao salvar categoria.');
+            } finally {
+                submitBtn.disabled = false;
             }
-        } catch (error) {
-            console.error(error);
-            alert('Erro de conexão ao salvar categoria.');
-        } finally {
-            submitBtn.disabled = false;
-        }
-    });
+        });
+    }
 
     function escapeHTML(str) {
         if(!str) return '';
@@ -390,15 +462,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('cor').value = backup.cor || '#3b82f6';
             document.getElementById('cor-hex').textContent = backup.cor || '#3b82f6';
             
-            document.querySelector('#modal-add .modal-header h2').textContent = 'Editar Backup';
-            openModal(modalAdd);
+            document.getElementById('modal-add-title').textContent = 'Editar Backup';
+            window.openModal('Adicionar');
         }
     }
 
     window.deleteBackup = async function(id) {
         if (confirm('Tem certeza que deseja excluir este backup?')) {
             try {
-                const response = await fetch('api', {
+                const response = await fetch('api.php', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ id }),
@@ -415,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteCategory = async function(id) {
         if (confirm('Excluir esta categoria também excluirá suas subcategorias. Tem certeza?')) {
             try {
-                const response = await fetch('api_categorias', {
+                const response = await fetch('api_categorias.php', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ id }),
@@ -437,28 +509,28 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('cat-id').value = cat.id;
             document.getElementById('cat-nome').value = cat.nome;
             document.getElementById('cat-parent').value = cat.parentId || '';
-            document.querySelector('#modal-cat .modal-header h2').textContent = 'Renomear Categoria';
-            document.querySelector('#modal-cat .modal-content').scrollTop = 0;
+            document.getElementById('modal-cat-title').textContent = 'Renomear Categoria';
+            window.openModal('Categoria');
         }
     }
 
-    window.toggleSenhaCard = function(btn) {
+    window.togglePass = function(btn) {
         const container = btn.parentElement;
-        const mask = container.querySelector('.senha-mask');
-        const real = container.querySelector('.senha-real');
+        const field = container.querySelector('.password-field');
+        const real = container.querySelector('.password-real');
         const icon = btn.querySelector('.material-symbols-outlined');
         const text = btn.querySelector('span:not(.material-symbols-outlined)');
         
-        if (real.classList.contains('hidden')) {
-            mask.classList.add('hidden');
-            real.classList.remove('hidden');
-            icon.textContent = 'visibility_off';
-            text.textContent = 'Ocultar';
-        } else {
-            mask.classList.remove('hidden');
+        if (field.classList.contains('hidden')) {
+            field.classList.remove('hidden');
             real.classList.add('hidden');
             icon.textContent = 'visibility';
             text.textContent = 'Ver';
+        } else {
+            field.classList.add('hidden');
+            real.classList.remove('hidden');
+            icon.textContent = 'visibility_off';
+            text.textContent = 'Ocultar';
         }
     }
 });
